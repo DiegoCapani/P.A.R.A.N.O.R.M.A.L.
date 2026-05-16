@@ -3,12 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>P.A.R.A.N.O.R.M.A.L. Analyzer</title>
+    <title>QUANTUM ECHO ANALYZER // PRO-SPEC</title>
     <style>
         :root {
             --neon-green: #00ff66;
             --alert-red: #ff3333;
-            --bg-dark: #0a0a0c;
+            --bg-dark: #08080a;
+            --panel-bg: rgba(12, 16, 12, 0.75);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body, html {
@@ -23,378 +29,431 @@
             user-select: none;
         }
 
-        #ui-container {
+        #app-container {
             display: flex;
             flex-direction: column;
             height: 100vh;
             padding: 15px;
-            box-sizing: border-box;
             justify-content: space-between;
         }
 
         header {
-            border-bottom: 1px solid var(--neon-green);
-            padding-bottom: 5px;
-            text-shadow: 0 0 8px var(--neon-green);
+            border-bottom: 2px dashed var(--neon-green);
+            padding-bottom: 8px;
+            font-weight: bold;
         }
 
         .title {
-            font-size: 1.2rem;
-            font-weight: bold;
+            font-size: 1.1rem;
             margin: 0;
+            letter-spacing: 1px;
         }
 
-        #viewer-matrix {
+        #status-display {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            display: block;
+            margin-top: 3px;
+        }
+
+        #screen-matrix {
             flex-grow: 1;
             margin: 15px 0;
             border: 1px solid var(--neon-green);
+            background: radial-gradient(circle, rgba(0,30,5,0.3) 0%, rgba(0,0,0,1) 85%);
             position: relative;
-            background: linear-gradient(0deg, rgba(0, 40, 10, 0.2) 50%, rgba(0, 0, 0, 0) 50%), linear-gradient(90deg, rgba(0, 40, 10, 0.2) 50%, rgba(0, 0, 0, 0) 50%);
-            background-size: 20px 20px;
+            box-shadow: inset 0 0 20px rgba(0, 255, 102, 0.2);
         }
 
         canvas {
+            display: block;
             width: 100%;
             height: 100%;
-            display: block;
         }
 
-        .dashboard {
+        .telemetry-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            gap: 12px;
             margin-bottom: 15px;
         }
 
-        .telemetry-card {
+        .panel {
             border: 1px solid var(--neon-green);
-            padding: 10px;
-            background: rgba(0, 20, 5, 0.4);
+            background: var(--panel-bg);
+            padding: 12px;
+            position: relative;
+            overflow: hidden;
         }
 
-        .label {
-            font-size: 0.75rem;
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 2px;
+            background: var(--neon-green);
+            opacity: 0.3;
+        }
+
+        .panel-label {
+            font-size: 0.7rem;
             text-transform: uppercase;
-            opacity: 0.8;
+            letter-spacing: 1px;
+            opacity: 0.7;
         }
 
-        .value {
-            font-size: 1.4rem;
+        .panel-value {
+            font-size: 1.6rem;
             font-weight: bold;
             margin-top: 5px;
+            font-variant-numeric: tabular-nums;
         }
 
-        #system-log {
-            height: 60px;
+        #terminal-log {
+            height: 75px;
             border: 1px solid var(--neon-green);
-            padding: 5px;
-            font-size: 0.75rem;
-            overflow-y: hidden;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 8px;
+            font-size: 0.7rem;
+            overflow: hidden;
+            line-height: 1.4;
         }
 
-        .btn-init {
+        .log-entry {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .btn-core {
             width: 100%;
-            background: var(--neon-green);
-            color: var(--bg-dark);
-            border: none;
-            padding: 15px;
+            background: transparent;
+            border: 2px solid var(--neon-green);
+            color: var(--neon-green);
+            padding: 16px;
             font-family: inherit;
             font-weight: bold;
-            font-size: 1rem;
+            font-size: 1.1rem;
             cursor: pointer;
             text-transform: uppercase;
-            box-shadow: 0 0 15px var(--neon-green);
-            transition: all 0.2s ease;
+            letter-spacing: 2px;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            margin-top: 15px;
         }
 
-        .btn-init:active {
-            transform: scale(0.98);
-            box-shadow: 0 0 5px var(--neon-green);
+        .btn-core:active {
+            background: var(--neon-green);
+            color: var(--bg-dark);
+            box-shadow: 0 0 20px var(--neon-green);
         }
 
-        /* Classe critica per anomalie rilevate */
-        .anomaly-detected {
-            animation: glitch-red 0.1s infinite;
+        /* HARDWARE ANOMALY STATE - TRIGGERED VIA JS */
+        .hardware-alert {
+            animation: core-glitch 0.15s infinite !important;
             color: var(--alert-red) !important;
             border-color: var(--alert-red) !important;
         }
 
-        @keyframes glitch-red {
-            0% { background-color: rgba(255, 0, 0, 0.2); }
-            50% { background-color: rgba(0, 0, 0, 0); }
-            100% { background-color: rgba(255, 0, 0, 0.1); }
+        @keyframes core-glitch {
+            0% { background-color: rgba(255, 50, 50, 0.15); box-shadow: inset 0 0 15px rgba(255,0,0,0.3); }
+            50% { background-color: rgba(0, 0, 0, 0); box-shadow: none; }
+            100% { background-color: rgba(255, 50, 50, 0.08); box-shadow: inset 0 0 10px rgba(255,0,0,0.2); }
         }
     </style>
 </head>
 <body>
 
-<div id="ui-container">
-    <header id="main-header">
-        <p class="title">QUANTUM ECHO ANALYZER // v2.0.66</p>
-        <span id="status-text">SYSTEM: IDLE</span>
+<div id="app-container">
+    <header id="app-header">
+        <p class="title">MATRIX SPECTRAL ANALYZER // ARCH-v2.6</p>
+        <span id="status-display">CORE STATUS: STABLE_IDLE</span>
     </header>
 
-    <div id="viewer-matrix">
-        <canvas id="matrix-canvas"></canvas>
+    <div id="screen-matrix">
+        <canvas id="radar-canvas"></canvas>
     </div>
 
-    <div class="dashboard">
-        <div class="telemetry-card" id="card-emf">
-            <div class="label">Elettro-Magnetismo (EMF)</div>
-            <div class="value" id="val-emf">0.00 <span style="font-size:0.8rem">µT</span></div>
+    <div class="telemetry-grid">
+        <div class="panel" id="panel-emf">
+            <div class="panel-label">EM Field Variance (EMF)</div>
+            <div class="panel-value" id="val-emf">0.00 <span style="font-size: 0.8rem;">µT</span></div>
         </div>
-        <div class="telemetry-card" id="card-audio">
-            <div class="label">Fluttuazione Audio (EVP)</div>
-            <div class="value" id="val-audio">0.00 <span style="font-size:0.8rem">Hz</span></div>
+        <div class="panel" id="panel-evp">
+            <div class="panel-label">Acoustic Resonance (EVP)</div>
+            <div class="panel-value" id="val-evp">0.00 <span style="font-size: 0.8rem;">Hz</span></div>
         </div>
     </div>
 
-    <div id="system-log">
-        [SYS] In attesa di inizializzazione hardware...
-    </div>
+    <div id="terminal-log"></div>
 
-    <button class="btn-init" id="btn-start">Inizia Scansione Ambiente</button>
+    <button class="btn-core" id="btn-trigger">Inizializza Scansione Spettrale</button>
 </div>
 
 <script>
-    /**
-     * ARCHITETTURA DI RILEVAMENTO PARANORMALE - HARDWARE SENSOR FUSION
-     * Sviluppato per massime performance hardware stabili.
-     */
-    const CONFIG = {
-        emfThreshold: 12.0,      // Delta microTesla per considerare un'anomalia magnetica
-        audioThreshold: 75.0,    // Livello di decibel/frequenza isolata per EVP
-        fusionThreshold: 65,     // Soglia critica combinata su scala 100
-    };
+/**
+ * ENGINE CORE - QUANTUM SPECTRUM ANALYZER
+ * Progettato per massime prestazioni hardware in JavaScript puro (Vanilla ES6).
+ */
+class QuantumAnalyzer {
+    constructor() {
+        // Mappatura DOM cacheata (nessuna query ripetuta nel loop)
+        this.dom = {
+            btn: document.getElementById('btn-trigger'),
+            header: document.getElementById('app-header'),
+            status: document.getElementById('status-display'),
+            log: document.getElementById('terminal-log'),
+            emfVal: document.getElementById('val-emf'),
+            evpVal: document.getElementById('val-evp'),
+            emfPanel: document.getElementById('panel-emf'),
+            evpPanel: document.getElementById('panel-evp'),
+            canvas: document.getElementById('radar-canvas')
+        };
 
-    const DOM = {
-        btnStart: document.getElementById('btn-start'),
-        header: document.getElementById('main-header'),
-        status: document.getElementById('status-text'),
-        log: document.getElementById('system-log'),
-        valEmf: document.getElementById('val-emf'),
-        valAudio: document.getElementById('val-audio'),
-        cardEmf: document.getElementById('card-emf'),
-        cardAudio: document.getElementById('card-audio'),
-        canvas: document.getElementById('matrix-canvas'),
-    };
+        // Parametri di calcolo e soglie hardware
+        this.config = {
+            emfThreshold: 6.5,
+            evpThreshold: 45.0,
+            fusionCritical: 55
+        };
 
-    // Context Grafico & Audio allocati lazy al click utente
-    let ctx = DOM.canvas.getContext('2d');
-    let audioCtx = null;
-    let analyser = null;
-    let dataArray = null;
+        // Allocazione statica degli stati (Previene l'attivazione del Garbage Collector)
+        this.state = {
+            isActive: false,
+            emfCurrent: 42.50,
+            emfBaseline: 42.50,
+            evpCurrentFreq: 0,
+            ghostProbability: 0,
+            radarAngle: 0
+        };
 
-    // Stato Sensori
-    let state = {
-        emfCurrent: 0,
-        emfBaseline: 0,
-        audioFreq: 0,
-        ghostIndex: 0,
-        isActive: false
-    };
+        // Audio API Context Lazy Variables
+        this.audioCtx = null;
+        this.analyser = null;
+        this.audioDataBuffer = null;
+        this.ctx = this.dom.canvas.getContext('2d', { alpha: false }); // Ottimizzazione rendering context hardware
 
-    // Ottimizzazione resize Canvas senza distorsione
-    function resizeCanvas() {
-        DOM.canvas.width = DOM.canvas.parentElement.clientWidth;
-        DOM.canvas.height = DOM.canvas.parentElement.clientHeight;
-    }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-
-    // Logger di sistema circolare veloce
-    function logSys(msg) {
-        DOM.log.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}<br>` + DOM.log.innerHTML.split('<br>').slice(0, 2).join('<br>');
+        this.initEvents();
     }
 
-    // Inizializzazione Core delle API del Browser
-    DOM.btnStart.addEventListener('click', async () => {
-        if (state.isActive) return;
+    initEvents() {
+        this.dom.btn.addEventListener('click', () => this.bootEngine());
+        window.addEventListener('resize', () => this.resizeCanvas());
+        this.resizeCanvas();
+        this.writeLog("System core pronto per l'accoppiamento hardware.");
+    }
+
+    resizeCanvas() {
+        this.dom.canvas.width = this.dom.canvas.parentElement.clientWidth;
+        this.dom.canvas.height = this.dom.canvas.parentElement.clientHeight;
+    }
+
+    writeLog(message) {
+        const timestamp = new Date().toTimeString().split(' ')[0];
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerHTML = `[${timestamp}] > ${message}`;
+        this.dom.log.insertBefore(entry, this.dom.log.firstChild);
         
-        DOM.btnStart.style.display = 'none';
-        DOM.status.innerText = "SYSTEM: CALIBRATING...";
-        logSys("Inizializzazione sensori a spettro espanso...");
+        // Mantieni pulita la memoria del DOM rimuovendo i vecchi nodi log
+        if (this.dom.log.childNodes.length > 4) {
+            this.dom.log.removeChild(this.dom.log.lastChild);
+        }
+    }
 
-        // 1. Audio API Init (EVP)
+    async bootEngine() {
+        if (this.state.isActive) return;
+
+        this.dom.btn.style.display = 'none';
+        this.dom.status.innerText = "CORE STATUS: COUPLING_HARDWARE...";
+        
+        // 1. Pipeline Audio Nativa (EVP)
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 256;
-            const source = audioCtx.createMediaStreamSource(stream);
-            source.connect(analyser);
-            dataArray = new Uint8Array(analyser.frequencyBinCount);
-            logSys("Modulo Audio Spettrale (EVP) ONLINE.");
-        } catch (e) {
-            logSys("Microfono non rilevato. Attivazione algoritmo virtuale EVP.");
+            this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            this.analyser = this.audioCtx.createAnalyser();
+            this.analyser.fftSize = 64; // Estremamente veloce per campionamenti real-time
+            
+            const source = this.audioCtx.createMediaStreamSource(stream);
+            source.connect(this.analyser);
+            
+            this.audioDataBuffer = new Uint8Array(this.analyser.frequencyBinCount);
+            this.writeLog("Iniezione stream audio a FFT riuscita.");
+        } catch (err) {
+            this.writeLog("RESTRIZIONE AUDIO: Attivato algoritmo di ricostruzione passiva.");
         }
 
-        // 2. Magnetometer API Init (EMF)
+        // 2. Pipeline Magnetica Nativa (EMF) con Fallback Integrato
+        let hasHardwareMag = false;
         if ('Magnetometer' in window) {
             try {
-                // Richiede autorizzazione esplicita su alcuni browser moderni
-                const permissions = await Promise.all([
-                    navigator.permissions.query({ name: 'accelerometer' }),
-                    navigator.permissions.query({ name: 'magnetometer' }),
-                    navigator.permissions.query({ name: 'gyroscope' })
-                ]);
-                
-                if (permissions.every(p => p.state === 'granted' || p.state === 'prompt')) {
-                    const magSensor = new Magnetometer({ frequency: 50 });
-                    magSensor.addEventListener('reading', () => {
-                        const magnitude = Math.sqrt(magSensor.x**2 + magSensor.y**2 + magSensor.z**2);
-                        processEMF(magnitude);
-                    });
-                    magSensor.start();
-                    logSys("Magnetometro Hardware (EMF) ONLINE.");
-                }
-            } catch (err) {
-                setupFallbackMagnetometer();
+                const magSensor = new Magnetometer({ frequency: 30 });
+                magSensor.addEventListener('reading', () => {
+                    hasHardwareMag = true;
+                    const magVect = Math.sqrt(magSensor.x**2 + magSensor.y**2 + magSensor.z**2);
+                    this.state.emfCurrent = parseFloat(magVect.toFixed(2));
+                });
+                magSensor.start();
+                this.writeLog("Sensore Magnetico ad accoppiamento diretto online.");
+            } catch (e) {
+                hasHardwareMag = false;
             }
-        } else {
-            setupFallbackMagnetometer();
         }
 
-        state.isActive = true;
-        DOM.status.innerText = "SYSTEM: SCANNING";
-        logSys("Analisi accoppiamento quantistico avviata.");
-        
-        // Avvio Loop di Rendering e Calcolo ad alte prestazioni
-        requestAnimationFrame(processingLoop);
-    });
+        // Sgancio del Fallback Sensor-Fusion se l'hardware nativo è limitato dalle Sandbox dei browser
+        setTimeout(() => {
+            if (!hasHardwareMag) {
+                this.writeLog("Aggancio software sussidiario su Device-Orientation API.");
+                this.bindFallbackSensors();
+            }
+        }, 500);
 
-    // Fallback matematico se il browser blocca l'EMF o manca l'hardware (usa il giroscopio legacy/devicemotion)
-    function setupFallbackMagnetometer() {
-        logSys("Hardware EMF puro non accessibile. Eseguo hooking su DeviceOrientation API.");
+        this.state.isActive = true;
+        this.dom.status.innerText = "CORE STATUS: ACTIVE_SCANNING";
+        
+        // Start dell'High Performance Render Loop
+        requestAnimationFrame(() => this.engineLoop());
+    }
+
+    bindFallbackSensors() {
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            DeviceOrientationEvent.requestPermission().catch(() => {});
+        }
+
         window.addEventListener('deviceorientation', (event) => {
-            // Simuliamo il vettore di variazione di campo tramite i flussi di rotazione terrestre rilevati
-            const pseudoMagnitude = Math.abs(event.alpha || 0) + Math.max(Math.abs(event.beta || 0), Math.abs(event.gamma || 0));
-            processEMF(pseudoMagnitude > 0 ? (pseudoMagnitude / 10) + 30 : 42.12 + (Math.random() * 2));
+            // Fusione dinamica dei vettori di rotazione spaziale per simulare micro-sbalzi del campo magnetico locale
+            const dynamicVector = Math.abs(event.alpha || 0) + Math.abs(event.beta || 0) + Math.abs(event.gamma || 0);
+            const stabilizationFactor = (Math.random() - 0.5) * 0.9;
+            this.state.emfCurrent = parseFloat((41.2 + (dynamicVector % 8) + stabilizationFactor).toFixed(2));
         });
     }
 
-    function processEMF(rawMagnitude) {
-        if (state.emfBaseline === 0) state.emfBaseline = rawMagnitude;
-        // Filtro passa-basso per stabilizzare la lettura
-        state.emfCurrent = parseFloat(rawMagnitude.toFixed(2));
+    /**
+     * ENGINE LOOP (60 FRAME PER SECONDO)
+     * Calcolo matematico deterministico ad alte prestazioni.
+     */
+    engineLoop() {
+        if (!this.state.isActive) return;
+
+        // --- 1. PROCESSO SEGNALE AUDIO (EVP) ---
+        let audioEnergy = 0;
+        if (this.analyser) {
+            this.analyser.getByteFrequencyData(this.audioDataBuffer);
+            let energySum = 0;
+            const len = this.audioDataBuffer.length;
+            for (let i = 0; i < len; i++) {
+                energySum += this.audioDataBuffer[i];
+            }
+            audioEnergy = energySum / len;
+            this.state.evpCurrentFreq = parseFloat((audioEnergy * 4.2).toFixed(1));
+        } else {
+            // Algoritmo stocastico di rumore d'ambiente a bassa frequenza
+            this.state.evpCurrentFreq = parseFloat((15.0 + Math.random() * 5 + Math.sin(Date.now() / 250) * 3).toFixed(1));
+            audioEnergy = this.state.evpCurrentFreq / 4.2;
+        }
+
+        // --- 2. AGGIORNAMENTO TELEMETRIA INTERFACCIA ---
+        this.dom.emfVal.innerHTML = `${this.state.emfCurrent} <span style="font-size: 0.8rem;">µT</span>`;
+        this.dom.evpVal.innerHTML = `${this.state.evpCurrentFreq} <span style="font-size: 0.8rem;">Hz</span>`;
+
+        // --- 3. ALGORITMO DI SENSOR FUSION QUANTISTICA ---
+        if (this.state.emfBaseline === 42.50 && this.state.emfCurrent !== 42.50) {
+            this.state.emfBaseline = this.state.emfCurrent; 
+        }
+        const deltaEmf = Math.abs(this.state.emfCurrent - this.state.emfBaseline);
+
+        // Calcolo probabilistico dell'indice di traccia spettrale
+        this.state.ghostProbability = Math.min(100, Math.floor((deltaEmf * 4.5) + (audioEnergy * 0.9)));
+
+        // --- 4. GESTIONE REAL-TIME DELLE ANOMALIE DI SISTEMA ---
+        const isEmfCritical = deltaEmf > this.config.emfThreshold;
+        const isEvpCritical = audioEnergy > this.config.evpThreshold;
+        const isSystemCritical = this.state.ghostProbability > this.config.fusionCritical;
+
+        if (isEmfCritical || isEvpCritical || isSystemCritical) {
+            this.dom.header.classList.add('hardware-alert');
+            this.dom.status.innerText = `CORE STATUS: ANOMALY_DETECTED (${this.state.ghostProbability}%)`;
+            
+            this.dom.emfPanel.classList.toggle('hardware-alert', isEmfCritical);
+            this.dom.evpPanel.classList.toggle('hardware-alert', isEvpCritical);
+
+            if (Math.random() > 0.94) {
+                this.writeLog(`⚠️ WARN: Fluttuazione d'onda critica rilevata sul vettore energetico.`);
+                if (navigator.vibrate) navigator.vibrate(80); // Feedback aptico hardware
+            }
+        } else {
+            this.dom.header.classList.remove('hardware-alert');
+            this.dom.emfPanel.classList.remove('hardware-alert');
+            this.dom.evpPanel.classList.remove('hardware-alert');
+            this.dom.status.innerText = "CORE STATUS: ACTIVE_SCANNING...";
+        }
+
+        // --- 5. EXECUTE PIPELINE RENDERING SU CANVAS VIA GPU ---
+        this.renderRadarFrame(audioEnergy, deltaEmf);
+
+        // Ricorsione controllata tramite V-Sync hardware del browser
+        requestAnimationFrame(() => this.engineLoop());
     }
 
     /**
-     * LOOP DI ELABORAZIONE PRINCIPALE (60 FPS)
-     * Gestisce il calcolo spettrale, la fusione dei dati e il disegno su Canvas senza lag.
+     * VECTOR RADAR RENDER PIPELINE
+     * Gestione diretta del Canvas con buffer d'onda persistente.
      */
-    function processingLoop() {
-        if (!state.isActive) return;
+    renderRadarFrame(audioEnergy, deltaEmf) {
+        // Effetto persistenza fosfori accoppiato alla GPU tramite fill alpha costante
+        this.ctx.fillStyle = 'rgba(8, 8, 10, 0.18)';
+        this.ctx.fillRect(0, 0, this.dom.canvas.width, this.dom.canvas.height);
 
-        // --- 1. ANALISI AUDIO (EVP) ---
-        let audioSignalPeak = 0;
-        if (analyser) {
-            analyser.getByteFrequencyData(dataArray);
-            // Estraiamo la media delle frequenze nel range dei sussurri ambientali (voci)
-            let sum = 0;
-            for (let i = 8; i < 32; i++) { // Isola sub-frequenze medie
-                sum += dataArray[i];
-            }
-            audioSignalPeak = sum / 24;
-            state.audioFreq = parseFloat((audioSignalPeak * 2.1).toFixed(1));
-        } else {
-            // Generatore stocastico di rumore bianco se manca il microfono (Modalità simulazione)
-            state.audioFreq = parseFloat((Math.random() * 12 + (Math.sin(Date.now() / 500) * 5)).toFixed(1));
+        const cx = this.dom.canvas.width / 2;
+        const cy = this.dom.canvas.height / 2;
+        const radius = Math.min(cx, cy) * 0.88;
+
+        // Disegno Griglia Circolare Geometrica
+        this.ctx.strokeStyle = 'rgba(0, 255, 102, 0.12)';
+        this.ctx.lineWidth = 1;
+        for (let i = 1; i <= 3; i++) {
+            this.ctx.beginPath();
+            this.ctx.arc(cx, cy, (radius / 3) * i, 0, Math.PI * 2);
+            this.ctx.stroke();
         }
 
-        // --- 2. AGGIORNAMENTO TELEMETRIA UI (Ottimizzato) ---
-        DOM.valEmf.innerHTML = `${state.emfCurrent} <span style="font-size:0.8rem">µT</span>`;
-        DOM.valAudio.innerHTML = `${state.audioFreq} <span style="font-size:0.8rem">Hz</span>`;
-
-        // --- 3. SENSOR FUSION ALGORITHM (Rilevamento Echi) ---
-        const emfDelta = Math.abs(state.emfCurrent - state.emfBaseline);
+        // Calcolo e rotazione dell'angolo sweep del radar continuo
+        this.state.radarAngle = (Date.now() / 700) % (Math.PI * 2);
         
-        // Calcolo dell'indice di anomalia probabilistico
-        let isEmfAnomalous = emfDelta > CONFIG.emfThreshold;
-        let isAudioAnomalous = audioSignalPeak > CONFIG.audioThreshold;
+        this.ctx.strokeStyle = 'rgba(0, 255, 102, 0.25)';
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx, cy);
+        this.ctx.lineTo(cx + Math.cos(this.state.radarAngle) * radius, cy + Math.sin(this.state.radarAngle) * radius);
+        this.ctx.stroke();
 
-        // Calcolo dell'indice globale di attività paranormale
-        state.ghostIndex = Math.min(100, Math.floor((emfDelta * 2) + (audioSignalPeak * 0.6)));
-
-        // --- 4. GESTIONE DEGLI ALLERTI E DEGLI EFFETTI VISIVI ---
-        if (isEmfAnomalous || isAudioAnomalous || state.ghostIndex > CONFIG.fusionThreshold) {
-            DOM.header.classList.add('anomaly-detected');
-            DOM.status.innerText = `⚠️ TRACCIA PARANORMALE INTERCETTATA (${state.ghostIndex}%)`;
+        // SEZIONE RENDERING ECO: Generazione particellare se l'indice supera la barriera di rumore
+        if (this.state.ghostProbability > 20) {
+            this.ctx.save();
             
-            if (isEmfAnomalous) DOM.cardEmf.classList.add('anomaly-detected');
-            if (isAudioAnomalous) DOM.cardAudio.classList.add('anomaly-detected');
+            // Mutazione cromatica della traccia in base alla severità dell'anomalia
+            const isAlert = this.state.ghostProbability > this.config.fusionCritical;
+            this.ctx.fillStyle = isAlert ? 'rgba(255, 51, 51, 0.45)' : 'rgba(0, 255, 102, 0.35)';
             
-            if (Math.random() > 0.85) {
-                logSys(`⚠️ ECO RILEVATO: Delta EMF [${emfDelta.toFixed(1)}] - Onde EVP instabili.`);
-                // Trigger vibrazione hardware se supportato dallo smartphone
-                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-            }
-        } else {
-            DOM.header.classList.remove('anomaly-detected');
-            DOM.cardEmf.classList.remove('anomaly-detected');
-            DOM.cardAudio.classList.remove('anomaly-detected');
-            DOM.status.innerText = "SYSTEM: SCANNING...";
-        }
+            // Algoritmo di mappatura spaziale basato su sfasamento dell'angolo d'onda
+            const targetDistance = radius * (0.4 + (audioEnergy / 180));
+            const driftAngle = this.state.radarAngle - 0.25;
 
-        // --- 5. RENDERING GRAFICO (Reticolo Radar a Cascata) ---
-        renderRadar(audioSignalPeak, emfDelta);
+            const traceX = cx + Math.cos(driftAngle) * (targetDistance + (deltaEmf * 1.5));
+            const traceY = cy + Math.sin(driftAngle) * (targetDistance + (deltaEmf * 1.5));
 
-        // Loop continuo controllato dall'hardware
-        requestAnimationFrame(processingLoop);
-    }
-
-    /**
-     * RENDERING DEL RETICOLO RADAR SUL CANVAS
-     * Scrittura pixel ad altissima efficienza.
-     */
-    function renderRadar(audioSignal, emfDelta) {
-        ctx.fillStyle = 'rgba(10, 10, 12, 0.15)'; // Crea l'effetto scia (fading)
-        ctx.fillRect(0, 0, DOM.canvas.width, DOM.canvas.height);
-
-        const centerX = DOM.canvas.width / 2;
-        const centerY = DOM.canvas.height / 2;
-        const maxRadius = Math.min(centerX, centerY) * 0.9;
-
-        // Disegno anelli radar verdi fissi
-        ctx.strokeStyle = 'rgba(0, 255, 102, 0.15)';
-        ctx.lineWidth = 1;
-        for (let r = maxRadius / 4; r <= maxRadius; r += maxRadius / 4) {
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-
-        // Linea sweep rotante del radar basata sul tempo
-        const angle = (Date.now() / 1000) % (Math.PI * 2);
-        ctx.strokeStyle = 'rgba(0, 255, 102, 0.4)';
-        ctx.beginPath();
-        ctx.moveTo(centerX, centerY);
-        ctx.lineTo(centerX + Math.cos(angle) * maxRadius, centerY + Math.sin(angle) * maxRadius);
-        ctx.stroke();
-
-        // SE C'È UN'ANOMALIA: Disegna l'eco/traccia energetica sul canvas
-        if (state.ghostIndex > 30) {
-            ctx.save();
-            // Cambia colore in rosso se l'indice è critico
-            ctx.fillStyle = state.ghostIndex > CONFIG.fusionThreshold ? 'rgba(255, 51, 51, 0.6)' : 'rgba(0, 255, 102, 0.5)';
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = ctx.fillStyle;
-
-            // Coordinate dell'anomalia generate in base alle fluttuazioni matematiche reali dei sensori
-            const ghostRadius = maxRadius * (audioSignal / 128);
-            const ghostAngle = angle - 0.4; // Segue la linea del radar con un leggero ritardo
+            // Disegno dell'eco quantistico con distorsione dimensionale variabile
+            this.ctx.beginPath();
+            const blobSize = 4 + (this.state.ghostProbability / 5.5) + Math.sin(Date.now() / 50) * 3;
+            this.ctx.arc(traceX, traceY, blobSize, 0, Math.PI * 2);
+            this.ctx.fill();
             
-            const ghostX = centerX + Math.cos(ghostAngle) * (ghostRadius + (emfDelta * 2));
-            const ghostY = centerY + Math.sin(ghostAngle) * (ghostRadius + (emfDelta * 2));
-
-            // Disegna l'anomalia come un ammasso particellare organico non definito
-            ctx.beginPath();
-            ctx.arc(ghostX, ghostY, 8 + (state.ghostIndex / 5), 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
+            this.ctx.restore();
         }
     }
+}
+
+// Inizializzazione immediata all'avvio della pagina
+window.addEventListener('DOMContentLoaded', () => {
+    new QuantumAnalyzer();
+});
 </script>
 
 </body>
